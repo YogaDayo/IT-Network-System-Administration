@@ -1,1 +1,143 @@
 
+# Dokumentasi Konfigurasi DNS Server dengan BIND9
+
+## 1. Pendahuluan
+BIND9 (Berkeley Internet Name Domain) adalah salah satu software DNS server yang paling umum digunakan di sistem operasi berbasis Linux. Dalam dokumen ini, kita akan membahas cara menginstal dan mengkonfigurasi BIND9 untuk menyediakan layanan DNS di sebuah jaringan.
+
+## 2. Instalasi BIND9
+### 2.1. Persyaratan Sistem
+Sebelum menginstal BIND9, pastikan sistem sudah diperbarui dengan perintah berikut:
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+### 2.2. Instalasi Paket
+Untuk menginstal BIND9 di sistem berbasis Debian/Ubuntu, jalankan perintah berikut:
+```bash
+sudo apt install bind9 -y
+```
+
+## 3. Konfigurasi BIND9
+### 3.1. Konfigurasi File Utama (named.conf.options)
+Edit file konfigurasi utama:
+```bash
+sudo nano /etc/bind/named.conf.options
+```
+Tambahkan atau ubah konfigurasi sebagai berikut:
+```bash
+options {
+    directory "/var/cache/bind";
+
+    recursion yes;
+    allow-query { any; };
+
+    forwarders {
+        8.8.8.8;
+        8.8.4.4;
+    };
+};
+```
+Simpan dan keluar dengan `CTRL+X`, lalu tekan `Y` dan `Enter`.
+
+### 3.2. Konfigurasi Zona Forward
+Edit file `/etc/bind/named.conf.local`:
+```bash
+sudo nano /etc/bind/named.conf.local
+```
+Tambahkan konfigurasi zona berikut:
+```bash
+zone "example.com" {
+    type master;
+    file "/etc/bind/db.example.com";
+};
+```
+
+### 3.3. Membuat File Zona Forward
+Buat file zona baru:
+```bash
+sudo cp /etc/bind/db.local /etc/bind/db.example.com
+sudo nano /etc/bind/db.example.com
+```
+Edit file seperti berikut:
+```bash
+;
+; Zone file for example.com
+;
+$TTL    604800
+@       IN      SOA     ns1.example.com. admin.example.com. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns1.example.com.
+ns1     IN      A       192.168.1.1
+www     IN      A       192.168.1.2
+```
+
+### 3.4. Konfigurasi Zona Reverse
+Tambahkan zona reverse di `/etc/bind/named.conf.local`:
+```bash
+zone "1.168.192.in-addr.arpa" {
+    type master;
+    file "/etc/bind/db.192";
+};
+```
+Buat file `/etc/bind/db.192`:
+```bash
+sudo cp /etc/bind/db.127 /etc/bind/db.192
+sudo nano /etc/bind/db.192
+```
+Edit isi file:
+```bash
+;
+; Reverse Zone file for 192.168.1.0/24
+;
+$TTL    604800
+@       IN      SOA     ns1.example.com. admin.example.com. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns1.example.com.
+1       IN      PTR     ns1.example.com.
+2       IN      PTR     www.example.com.
+```
+
+## 4. Pengujian dan Restart BIND9
+### 4.1. Mengecek Konfigurasi
+Gunakan perintah berikut untuk memeriksa kesalahan konfigurasi:
+```bash
+sudo named-checkconf
+sudo named-checkzone example.com /etc/bind/db.example.com
+sudo named-checkzone 1.168.192.in-addr.arpa /etc/bind/db.192
+```
+Jika tidak ada kesalahan, lanjutkan ke langkah berikutnya.
+
+### 4.2. Restart dan Aktifkan BIND9
+Jalankan perintah berikut untuk menerapkan konfigurasi:
+```bash
+sudo systemctl restart bind9
+sudo systemctl enable bind9
+```
+
+### 4.3. Uji Resolusi DNS
+Gunakan `nslookup` atau `dig` untuk menguji DNS server:
+```bash
+nslookup www.example.com 192.168.1.1
+```
+atau
+```bash
+dig @192.168.1.1 www.example.com
+```
+Jika konfigurasi benar, server akan merespons dengan alamat IP yang sesuai.
+
+## 5. Kesimpulan
+Dokumen ini menjelaskan langkah-langkah dasar dalam menginstal dan mengkonfigurasi DNS Server menggunakan BIND9. Jika kamu ingin menambahkan fitur seperti DNS caching atau forwarding, kamu bisa mengembangkan konfigurasi lebih lanjut.
+
+---
+Dokumentasi ini bisa digunakan sebagai dasar proyek di GitHub. Jika ingin menambahkan contoh konfigurasi lebih kompleks, beri tahu saya!
+
